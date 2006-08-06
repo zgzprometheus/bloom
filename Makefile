@@ -1,9 +1,10 @@
 #
-# Open Bloom Filter Master MakeFile
-# By Arash Partow - 2000
+# Bloom Filter Master MakeFile
+# By Arash Partow - 2002
 #
 # URL: http://www.partow.net/programming/hashfunctions/index.html
 #
+# Note: You will need to download the C++ General Hash Functions library
 #
 # Copyright Notice:
 # Free use of this library is permitted under the
