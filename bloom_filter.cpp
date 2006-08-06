@@ -54,12 +54,7 @@ bloom_filter& bloom_filter::operator^=(const bloom_filter& filter)
 
 void bloom_filter::generate_unique_salt()
 {
-   if (random_seed == 0)
-   {
-      random_seed = static_cast<unsigned int>(time(NULL));
-   }
    srand(static_cast<unsigned int>(random_seed));
-
    const std::size_t MAX_LENGTH = 5;
    while(salt.size() < salt_count)
    {
