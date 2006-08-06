@@ -27,7 +27,7 @@
 #include <limits>
 
 #include <stdlib.h>
-#include <time.h>
+
 
 const std::size_t   char_size   = 0x08;    // 8 bits in 1 char(unsigned)
 const unsigned char bit_mask[char_size] = {
@@ -159,7 +159,7 @@ private:
       }
       salt_count = static_cast<std::size_t>(min_k);
       table_size = static_cast<std::size_t>(min_m);
-      table_size += (((table_size % 8) != 0) ? (8 - (table_size % 8)) : 0);
+      table_size += (((table_size % char_size) != 0) ? (char_size - (table_size % char_size)) : 0);
    }
 
    std::vector<std::string> salt;

@@ -29,12 +29,15 @@
 void read_file(const std::string file_name, std::vector<std::string>& buffer);
 std::string reverse(std::string str);
 
+void generate_outliers(std::vector<std::string> word_list, std::vector<std::string>& outliers);
+
 int main(int argc, char* argv[])
 {
 
    std::vector<std::string> word_list;
+   std::vector<std::string> outliers;
 
-   read_file("word-list.txt",word_list);
+   read_file("word-list-large.txt",word_list);
 
    if (word_list.empty())
    {
@@ -42,44 +45,42 @@ int main(int argc, char* argv[])
       return false;
    }
 
-   bloom_filter  filter1(word_list.size(),1.0/(5.0 * word_list.size()),0x00000000);
-   bloom_filter  filter2(word_list.size(),1.0/(5.0 * word_list.size()),0x00000000);
-   bloom_filter  filter = filter1 & filter2;  // intersection of filter1 and filter2
+   generate_outliers(word_list,outliers);
 
-   for(std::size_t i = 0; i < word_list.size(); i++)
+   unsigned int random_seed          = 0;
+   double       total_false_positive = 0.0;
+   while(random_seed < 1000)
    {
-      filter.insert(word_list[i]);
-   }
+      bloom_filter  filter(word_list.size(),1.0/(100.0 * word_list.size()),random_seed++);
 
-   for(std::size_t i = 0; i < word_list.size(); i++)
-   {
-      if (!filter.contains(word_list[i]))
+      for(std::vector<std::string>::iterator it = word_list.begin(); it != word_list.end(); ++it)
       {
-         std::cout << "ERROR: key not found!" << std::endl;
-      }
-   }
-
-   for(std::size_t i = 0; i < word_list.size(); i++)
-   {
-      if (filter.contains(word_list[i] + reverse(word_list[i])))
-      {
-         std::cout << "ERROR: key that does not exist found! => " << (word_list[i] + reverse(word_list[i])) << std::endl;
+         filter.insert(*it);
       }
 
-      if (filter.contains(word_list[i] + word_list[i]))
+      for(std::vector<std::string>::iterator it = word_list.begin(); it != word_list.end(); ++it)
       {
-         std::cout << "ERROR: key that does not exist found! => " << (word_list[i] + reverse(word_list[i])) << std::endl;
+         if (!filter.contains(*it))
+         {
+            std::cout << "ERROR: key not found! =>" << (*it) << std::endl;
+         }
       }
 
-      if (filter.contains(reverse(word_list[i]) + word_list[i] + reverse(word_list[i])))
+      for(std::vector<std::string>::iterator it = outliers.begin(); it != outliers.end(); ++it)
       {
-         std::cout << "ERROR: key that does not exist found! => " << reverse(word_list[i]) + word_list[i] + reverse(word_list[i]) << std::endl;
+         if (filter.contains(*it))
+         {
+            //std::cout << "ERROR: key that does not exist found! => " << (*it) << std::endl;
+            total_false_positive++;
+         }
       }
+      std::cout << "Round: " << random_seed <<
+                   "\tTotal queries: " << (random_seed + 1) * (outliers.size() + word_list.size()) <<
+                   "\tFalse queries: " << total_false_positive <<
+                   "\tIPFP:" << 1.0/(10.0 * word_list.size()) <<
+                   "\tPFP:" << total_false_positive / ((random_seed + 1) * (outliers.size() + word_list.size())) <<
+                   "\tDPFP:" << (total_false_positive / ((random_seed + 1) * (outliers.size() + word_list.size()))) - (1.0/(10.0 * word_list.size())) << std::endl;
 
-      if (filter.contains(word_list[i] + reverse(word_list[i]) + word_list[i]))
-      {
-         std::cout << "ERROR: key that does not exist found! => " << word_list[i] + reverse(word_list[i]) + word_list[i] << std::endl;
-      }
    }
 
    return true;
@@ -114,3 +115,17 @@ std::string reverse(std::string str)
 
    return str;
 }
+
+void generate_outliers(std::vector<std::string> word_list, std::vector<std::string>& outliers)
+{
+   for(std::vector<std::string>::iterator it = word_list.begin(); it != word_list.end(); ++it)
+   {
+      if ((*it) != reverse((*it)))
+      {
+         outliers.push_back((*it) + reverse((*it)));
+         outliers.push_back((*it) + (*it));
+         outliers.push_back(reverse((*it)) + (*it) + reverse((*it)));
+      }
+   }
+}
+
