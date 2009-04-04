@@ -67,7 +67,7 @@ int main(int argc, char* argv[])
    std::size_t total_numnber_of_quries = 0;
    while(random_seed < 1000)
    {
-      double probability_of_false_positive = 1.0/(1.0 * word_list.size());
+      double probability_of_false_positive = 1.0 / (1.0 * word_list.size());
 
       bloom_filter  filter(word_list.size(),probability_of_false_positive,random_seed++);
 
