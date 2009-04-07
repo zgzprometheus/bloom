@@ -25,10 +25,16 @@ CPP_SRC =
 
 OBJECTS = $(CPP_SRC:.cpp=.o)
 
-all: $(OBJECTS) BloomFilterTest
+BUILD+=bloom_filter_example01
+BUILD+=bloom_filter_example02
 
-BloomFilterTest: $(OBJECTS) bloom_filter.hpp BloomFilterTest.cpp
-	$(COMPILER) $(OPTIONS) BloomFilterTest BloomFilterTest.cpp $(OBJECTS)
+all: $(BUILD)
+
+bloom_filter_example01: bloom_filter.hpp bloom_filter_example01.cpp
+	$(COMPILER) $(OPTIONS) bloom_filter_example01 bloom_filter_example01.cpp
+
+bloom_filter_example02: bloom_filter.hpp bloom_filter_example02.cpp
+	$(COMPILER) $(OPTIONS) bloom_filter_example02 bloom_filter_example02.cpp
 
 clean:
 	rm -f core *.o *.bak *stackdump *#

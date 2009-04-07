@@ -47,14 +47,14 @@ public:
 
    typedef unsigned int bloom_type;
 
-   bloom_filter(const std::size_t& element_count,
+   bloom_filter(const std::size_t& predicted_element_count,
                 const double& false_positive_probability,
                 const std::size_t& random_seed)
    : hash_table_(0),
-     predicted_element_count_(element_count),
+     predicted_element_count_(predicted_element_count),
      inserted_element_count_(0),
      random_seed_((random_seed) ? random_seed : 0xA5A5A5A5),
-     false_positive_probability_(false_positive_probability)
+     desired_false_positive_probability_(false_positive_probability)
    {
       find_optimal_parameters();
       hash_table_ = new unsigned char[table_size_ / bits_per_char];
@@ -74,7 +74,7 @@ public:
       predicted_element_count_ = filter.predicted_element_count_;
       inserted_element_count_ = filter.inserted_element_count_;
       random_seed_ = filter.random_seed_;
-      false_positive_probability_ = filter.false_positive_probability_;
+      desired_false_positive_probability_ = filter.desired_false_positive_probability_;
       delete[] hash_table_;
       hash_table_ = new unsigned char[table_size_ / bits_per_char];
       std::copy(filter.hash_table_,filter.hash_table_ + (table_size_ / bits_per_char),hash_table_);
@@ -125,6 +125,16 @@ public:
       insert(reinterpret_cast<const unsigned char*>(data),length);
    }
 
+   template<typename InputIterator>
+   inline void insert(const InputIterator begin, const InputIterator end)
+   {
+      InputIterator it = begin;
+      while(it != end)
+      {
+         insert(*it++);
+      }
+   }
+
    inline bool contains(const unsigned char* key_begin, std::size_t length) const
    {
       for(std::vector<bloom_type>::const_iterator it = salt_.begin(); it != salt_.end(); ++it)
@@ -155,6 +165,36 @@ public:
       return contains(reinterpret_cast<const unsigned char*>(data),length);
    }
 
+   template<typename InputIterator>
+   inline InputIterator contains_all(const InputIterator begin, const InputIterator end)
+   {
+      InputIterator it = begin;
+      while(it != end)
+      {
+         if (!contains(*it))
+         {
+            return it;
+         }
+         ++it;
+      }
+      return end;
+   }
+
+   template<typename InputIterator>
+   inline InputIterator contains_none(const InputIterator begin, const InputIterator end)
+   {
+      InputIterator it = begin;
+      while(it != end)
+      {
+         if (contains(*it))
+         {
+            return it;
+         }
+         ++it;
+      }
+      return end;
+   }
+
    inline std::size_t size() const
    {
       return table_size_;
@@ -173,10 +213,30 @@ public:
         designated table size and hash function count in conjunction with
         the current number of inserted elements - not the user defined
         predicated/expected number of inserted elements.
-
       */
-      static const double e = 2.71828182845904523536;
-      return std::pow(1.0 - std::pow(e, -1.0 * salt_.size() * inserted_element_count_ / table_size_), 1.0 * salt_.size());
+      return std::pow(1.0 - std::exp(-1.0 * salt_.size() * inserted_element_count_ / table_size_), 1.0 * salt_.size());
+   }
+
+   inline bool compress(const double& percentage)
+   {
+      std::size_t original_table_size = table_size_;
+      table_size_ = static_cast<std::size_t>((table_size_ * percentage) / 100.0);
+      if (bits_per_char > table_size_)
+      {
+         table_size_ = 0;
+         return false;
+      }
+      table_size_ += (((table_size_ % bits_per_char) != 0) ? (bits_per_char - (table_size_ % bits_per_char)) : 0);
+      desired_false_positive_probability_ = effective_fpp();
+      unsigned char* tmp = new unsigned char[table_size_ / bits_per_char];
+      std::copy(hash_table_, hash_table_ +  (table_size_ / bits_per_char), tmp);
+      unsigned char* it = hash_table_ + (table_size_ / bits_per_char);
+      unsigned char* end = hash_table_ + (original_table_size / bits_per_char);
+      unsigned char* it_tmp = tmp;
+      while(it != end) { *(it_tmp++) |= (*it++); }
+      delete[] hash_table_;
+      hash_table_ = tmp;
+      return true;
    }
 
    bloom_filter& operator &= (const bloom_filter& filter)
@@ -315,9 +375,9 @@ private:
       double min_m = std::numeric_limits<double>::infinity();
       double min_k = 0.0;
       double curr_m = 0.0;
-      for(double k = 0.0; k < 1000.0; k++)
+      for(double k = 0.0; k < 1000.0; ++k)
       {
-         if ((curr_m = ((- k * predicted_element_count_) / std::log(1.0 - std::pow(false_positive_probability_, 1.0 / k)))) < min_m)
+         if ((curr_m = ((- k * predicted_element_count_) / std::log(1.0 - std::pow(desired_false_positive_probability_, 1.0 / k)))) < min_m)
          {
             min_m = curr_m;
             min_k = k;
@@ -352,7 +412,7 @@ private:
    std::size_t             predicted_element_count_;
    std::size_t             inserted_element_count_;
    std::size_t             random_seed_;
-   double                  false_positive_probability_;
+   double                  desired_false_positive_probability_;
 };
 
 
