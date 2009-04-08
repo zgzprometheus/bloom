@@ -83,7 +83,7 @@ public:
       return *this;
    }
 
-  ~bloom_filter()
+   virtual ~bloom_filter()
    {
       delete[] hash_table_;
    }
@@ -135,7 +135,7 @@ public:
       }
    }
 
-   inline bool contains(const unsigned char* key_begin, std::size_t length) const
+   inline virtual bool contains(const unsigned char* key_begin, std::size_t length) const
    {
       for(std::vector<bloom_type>::const_iterator it = salt_.begin(); it != salt_.end(); ++it)
       {
@@ -217,28 +217,6 @@ public:
       return std::pow(1.0 - std::exp(-1.0 * salt_.size() * inserted_element_count_ / table_size_), 1.0 * salt_.size());
    }
 
-   inline bool compress(const double& percentage)
-   {
-      std::size_t original_table_size = table_size_;
-      table_size_ = static_cast<std::size_t>((table_size_ * percentage) / 100.0);
-      if (bits_per_char > table_size_)
-      {
-         table_size_ = 0;
-         return false;
-      }
-      table_size_ += (((table_size_ % bits_per_char) != 0) ? (bits_per_char - (table_size_ % bits_per_char)) : 0);
-      desired_false_positive_probability_ = effective_fpp();
-      unsigned char* tmp = new unsigned char[table_size_ / bits_per_char];
-      std::copy(hash_table_, hash_table_ +  (table_size_ / bits_per_char), tmp);
-      unsigned char* it = hash_table_ + (table_size_ / bits_per_char);
-      unsigned char* end = hash_table_ + (original_table_size / bits_per_char);
-      unsigned char* it_tmp = tmp;
-      while(it != end) { *(it_tmp++) |= (*it++); }
-      delete[] hash_table_;
-      hash_table_ = tmp;
-      return true;
-   }
-
    bloom_filter& operator &= (const bloom_filter& filter)
    {
       /* intersection */
@@ -290,7 +268,7 @@ public:
       return *this;
    }
 
-private:
+protected:
 
    void generate_unique_salt()
    {
@@ -438,8 +416,74 @@ bloom_filter operator ^ (const bloom_filter& a, const bloom_filter& b)
    return result;
 }
 
-#endif
 
+class compressible_bloom_filter : public bloom_filter
+{
+public:
+
+   compressible_bloom_filter(const std::size_t& predicted_element_count,
+                             const double& false_positive_probability,
+                             const std::size_t& random_seed)
+   : bloom_filter(predicted_element_count,false_positive_probability,random_seed)
+   {
+      size_list.push_back(table_size_);
+   }
+
+   using bloom_filter::contains;
+
+   inline bool contains(const unsigned char* key_begin, std::size_t length) const
+   {
+      for(std::size_t i = 0; i < salt_.size(); ++i)
+      {
+         std::size_t bit_index = hash_ap(key_begin,length,salt_[i]);
+         for(unsigned int j = 0; j < size_list.size(); bit_index %= size_list[j++]);
+         std::size_t bit = bit_index % bits_per_char;
+         if ((hash_table_[bit_index / bits_per_char] & bit_mask[bit]) != bit_mask[bit])
+         {
+            return false;
+         }
+      }
+      return true;
+   }
+
+   inline std::size_t size() const
+   {
+      return size_list.back();
+   }
+
+   inline double effective_fpp() const
+   {
+      return std::pow(1.0 - std::exp(-1.0 * salt_.size() * inserted_element_count_ / size_list.back()), 1.0 * salt_.size());
+   }
+
+   inline bool compress(const double& percentage)
+   {
+      if ((0.0 >= percentage) || (percentage >= 100.0)) return false;
+      std::size_t original_table_size = size_list.back();
+      std::size_t new_table_size = static_cast<std::size_t>((size_list.back() * (1.0 - (percentage / 100.0))));
+      new_table_size -= (((new_table_size % bits_per_char) != 0) ? (new_table_size % bits_per_char) : 0);
+      if ((bits_per_char > new_table_size) || (new_table_size >= original_table_size)) return false;
+      desired_false_positive_probability_ = effective_fpp();
+      unsigned char* tmp = new unsigned char[new_table_size / bits_per_char];
+      std::copy(hash_table_, hash_table_ +  (new_table_size / bits_per_char), tmp);
+      unsigned char* it = hash_table_ + (new_table_size / bits_per_char);
+      unsigned char* end = hash_table_ + (original_table_size / bits_per_char);
+      unsigned char* it_tmp = tmp;
+      while(it != end) { *(it_tmp++) |= (*it++); }
+      delete[] hash_table_;
+      hash_table_ = tmp;
+      size_list.push_back(new_table_size);
+      return true;
+   }
+
+private:
+
+   std::vector<std::size_t> size_list;
+};
+
+
+
+#endif
 
 
 /*
