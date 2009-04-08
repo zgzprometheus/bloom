@@ -3,7 +3,7 @@
  *                                                                        *
  *                           Open Bloom Filter                            *
  *                                                                        *
- * Description: Demonstration of Open Bloom Filter                        *
+ * Description: Usage pattern of Compressible Bloom Filter                *
  * Author: Arash Partow - 2000                                            *
  * URL: http://www.partow.net                                             *
  * URL: http://www.partow.net/programming/hashfunctions/index.html        *
@@ -34,8 +34,6 @@ template <class T,
           template <class,class> class Container>
 void read_file(const std::string& file_name, Container<T, Allocator>& c);
 
-std::string reverse(std::string str);
-
 void generate_outliers(const std::vector<std::string>& word_list, std::deque<std::string>& outliers);
 void purify_outliers(const std::vector<std::string>& word_list,std::deque<std::string>& outliers);
 
@@ -46,9 +44,6 @@ int main()
 
    std::cout << "Loading list....";
    read_file("word-list.txt",word_list);
-   //read_file("word-list-large.txt",word_list);
-   //read_file("word-list-extra-large.txt",word_list);
-   //read_file("random-list.txt",word_list);
    std::cout << " Complete." << std::endl;
 
    if (word_list.empty())
@@ -60,8 +55,8 @@ int main()
    generate_outliers(word_list,outliers);
    purify_outliers(word_list,outliers);
 
-   unsigned int random_seed = 0;
-   double total_false_positive = 0.0;
+   unsigned int random_seed = 0xA57EC3B2;
+   std::size_t total_false_positive = 0;
 
    std::size_t word_list_storage_size = 0;
    for(unsigned int i = 0; i < word_list.size(); ++i)
@@ -70,15 +65,14 @@ int main()
    }
 
    std::size_t total_number_of_queries = 0;
-   while(random_seed < 1000)
+   double desired_probability_of_false_positive = 1.0 / (1.0 * word_list.size());
+
+   compressible_bloom_filter filter(word_list.size(),desired_probability_of_false_positive,random_seed);
+
+   filter.insert(word_list.begin(),word_list.end());
+
+   while (filter.size() > 1)
    {
-      double probability_of_false_positive = 1.0 / (1.0 * word_list.size());
-      std::size_t current_false_positive =  0;
-
-      bloom_filter filter(word_list.size(),probability_of_false_positive,random_seed++);
-
-      filter.insert(word_list.begin(),word_list.end());
-
       std::vector<std::string>::iterator it = filter.contains_all(word_list.begin(),word_list.end());
       if (word_list.end() != it)
       {
@@ -88,29 +82,22 @@ int main()
 
       for(std::deque<std::string>::iterator it = outliers.begin(); it != outliers.end(); ++it)
       {
-         if (filter.contains(*it))
-         {
-            //std::cout << "ERROR: key that does not exist found! => " << (*it) << std::endl;
-            ++total_false_positive;
-            ++current_false_positive;
-         }
+         if (filter.contains(*it)) ++total_false_positive;
       }
 
       total_number_of_queries += (outliers.size() + word_list.size());
+      double pfp = total_false_positive / (1.0 * total_number_of_queries);
 
-      // Overall false positive probability
-      double current_pfp = total_false_positive / (1.0 * total_number_of_queries);
+      std::cout << "Filter Size: "                    << filter.size() << "\t";
+      std::cout << "EFPP: " << filter.effective_fpp() << "\t";
+      std::cout << "OFPP: " << pfp                    << "\t";
+      std::cout << "Diff: " << 100.0 * (pfp / filter.effective_fpp()) << "%" << std::endl;
 
-      // Current false positive probability
-      //double current_pfp = current_false_positive /  (1.0 * total_numnber_of_quries);
-
-      std::cout << "Round:"     << random_seed <<
-                   "\tQueries:" << total_number_of_queries <<
-                   "\tFPQ:"     << total_false_positive << //Queries with False Positives
-                   "\tIPFP:"    << probability_of_false_positive <<
-                   "\tPFP:"     << current_pfp <<
-                   "\tDPFP:"    << (100.0 * current_pfp) / probability_of_false_positive << "%" <<
-                   "\tTvD:"     << (100.0 * filter.size()) / (bits_per_char * word_list_storage_size) << "%" << std::endl;
+      if (!filter.compress(5.0))
+      {
+         std::cout << "Filter cannot be compressed any further." << std::endl;
+         break;
+      }
    }
 
    return 0;
@@ -127,6 +114,7 @@ void read_file(const std::string& file_name, Container<T, Allocator>& c)
    std::string buffer;
    while(std::getline(stream,buffer)) { c.push_back(buffer); }
 }
+
 
 std::string reverse(std::string str)
 {
@@ -226,3 +214,4 @@ void purify_outliers(const std::vector<std::string>& word_list, std::deque<std::
       }
    }
 }
+
