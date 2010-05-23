@@ -14,14 +14,6 @@
 COMPILER         = -c++
 OPTIMIZATION_OPT = -O3
 OPTIONS          = -ansi -pedantic -Wall -Werror $(OPTIMIZATION_OPT) -o
-OPTIONS_LIBS     = -ansi -pedantic -Wall -Werror $(OPTIMIZATION_OPT) -c
-
-CPP_SRC =
-
-%.o: %.h %.cpp
-	$(COMPILER) $(OPTIONS_LIBS) $*.cpp -o $@
-
-OBJECTS = $(CPP_SRC:.cpp=.o)
 
 BUILD+=bloom_filter_example01
 BUILD+=bloom_filter_example02
