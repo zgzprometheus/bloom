@@ -379,7 +379,7 @@ protected:
       double min_m = std::numeric_limits<double>::infinity();
       double min_k = 0.0;
       double curr_m = 0.0;
-      double k = 0.0;
+      double k = 1.0;
       while (k < 1000.0)
       {
          double numerator   = (- k * predicted_inserted_element_count_);
