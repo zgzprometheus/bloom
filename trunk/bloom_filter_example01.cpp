@@ -88,8 +88,27 @@ int main(int argc, char* argv[])
 
    while (random_seed < 1000)
    {
+      bloom_parameters parameters;
+      parameters.projected_element_count    = word_list.size();
+      parameters.false_positive_probability = desired_probability_of_false_positive;
+      parameters.random_seed                = ++random_seed;
 
-      bloom_filter filter(word_list.size(),desired_probability_of_false_positive,random_seed++);
+      if (!parameters)
+      {
+         std::cout << "Error - Invalid set of bloom filter parameters!" << std::endl;
+         return 1;
+      }
+
+      parameters.compute_optimal_parameters();
+
+      bloom_filter filter(parameters);
+
+      printf("Filter Size: %7.3fKB "
+             "Data Size: %8.3fKB "
+             "Hash Count: %llu\n",
+             filter.size() / (8.0 * 1024),
+             word_list_storage_size / 1024.0,
+             static_cast<unsigned long long>(filter.hash_count()));
 
       filter.insert(word_list.begin(),word_list.end());
 
