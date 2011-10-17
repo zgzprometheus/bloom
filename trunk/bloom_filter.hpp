@@ -179,7 +179,7 @@ public:
    : bit_table_(0),
      projected_element_count_(p.projected_element_count),
      inserted_element_count_(0),
-     random_seed_((p.random_seed) ? p.random_seed : 0xA5A5A5A5),
+     random_seed_((p.random_seed * 0xA5A5A5A5) + 1),
      desired_false_positive_probability_(p.false_positive_probability)
    {
       salt_count_ = p.optimal_parameters.number_of_hashes;
