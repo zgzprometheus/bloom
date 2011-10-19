@@ -84,7 +84,7 @@ int main(int argc, char* argv[])
 
    const double desired_probability_of_false_positive = 1.0 / word_list.size();
 
-   printf("Round\tQueries \tFPQ   \tIPFP    \tPFP     \tDPFP    \tTvD     \n");
+   printf("Round\t   Queries\t   FPQ\t   IPFP\t           PFP\t            DPFP\t    TvD\n");
 
    unsigned int max_false_positive_count = 0;
    unsigned int min_false_positive_count = std::numeric_limits<unsigned int>::max();
@@ -136,7 +136,7 @@ int main(int argc, char* argv[])
       // Overall false positive probability
       double pfp = current_total_false_positive / (1.0 * outliers.size());
 
-      printf("%10llu\t%10llu\t%6d\t%8.7f\t%8.7f\t%8.6f\t%8.6f\n",
+      printf("%6llu\t%10llu\t%6d\t%8.7f\t%8.7f\t%9.3f%%\t%8.6f\n",
               static_cast<unsigned long long>(random_seed),
               static_cast<unsigned long long>(total_number_of_queries),
               current_total_false_positive,
